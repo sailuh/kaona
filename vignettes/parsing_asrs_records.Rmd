@@ -1,0 +1,51 @@
+---
+title: "Online ASRS Record Query Formatting"
+output: 
+  html_document:
+    toc: true
+vignette: >
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteIndexEntry{Online ASRS Record Query Formatting}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+rm(list = ls())
+```
+
+```{r message=FALSE, warning=FALSE}
+require(kaona)
+require(data.table)
+require(stringr)
+require(knitr)
+```
+
+
+# Corpus
+
+## Downloading the Corpus 
+
+The corpus used in this notebook is obtained from [NASA ASRS Database](https://asrs.arc.nasa.gov/search/database.html) by performing the following steps:
+
+ 1. Click `Start Search`
+ 1. Under `Date & Report Number`, and the item `Date of Incident` click both `date` fields, and specify the date for any time range of interest. 
+ 1. Click `Run Search` at the bottom of the page.
+ 1. When the results are presented, select under `Export Results` the option `Comma Separated File (CSV)`. 
+ 
+ASRS imposes a limit on the number of records obtained in a query. To obtain a longer time range, try to specify fewer months over multiple queries. This notebook will parse all the query .csv results and separate them by month based on the date of each table's row.
+ 
+## Parsing the Corpus
+
+To format and load the record in R, use the package's `parse_record` function:
+
+```{r}
+raw_folder_path <- "../rawdata/all_asrs_reports_during_covid/"
+corpus <- parse_record(raw_folder_path)
+```
+
+The dataset contain many rows and columns, here we show a sample of the ACN, Date, and Person 1 Narrative which constitute the basic data for other functionality in this package:
+
+```{r}
+kable(head(corpus[[5]][,.(`ACN`,`Time|Date`,`Report 1|Narrative`)]))
+```
+

@@ -1,0 +1,36 @@
+Package: kaona
+Type: Package
+Title: Kaona
+Version: 0.0.0.9000
+Description: Methods to analyze NASA's Aviation and Safety Reporting System
+Authors@R: c(
+    person('Carlos', 'Paradis', role = c('aut', 'cre'),
+      email = 'cvas@hawaii.edu',
+      comment = c(ORCID = "0000-0002-3062-7547")),
+    person('Rick', 'Kazman', role = c('ths'),
+      email = ''),
+    person('Misty', 'Davies', role = c('ths'),
+      email = '')      
+    )
+Maintainer: Carlos Paradis <cvas@hawaii.edu>
+License: TBD
+Encoding: UTF-8
+LazyData: true
+Depends:
+    data.table (>= 1.12.8),
+    arrangements (>= 1.1.8),
+    knitr,
+    stringr (>= 1.4.0),
+    tokenizers (>= 0.2.1)
+Suggests: text2vec (>= 0.5.1),
+    lubridate (>= 1.7.4),
+    ggplot2 (>= 3.2.1),
+    ggthemes (>= 4.2.0),
+    pkgdown (>= 1.4.1),
+    knitr (>= 1.26),
+    reactable (>= 0.1.0),
+    magrittr (>= 1.5)
+VignetteBuilder: knitr
+URL: https://github.com/sailuh/kaona
+BugReports: https://github.com/sailuh/kaona/issues
+RoxygenNote: 7.0.2
