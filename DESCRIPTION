@@ -21,7 +21,8 @@ Depends:
     arrangements (>= 1.1.8),
     knitr,
     stringr (>= 1.4.0),
-    tokenizers (>= 0.2.1)
+    tokenizers (>= 0.2.1),
+    DEoptim (>= 2.2-4)
 Suggests: text2vec (>= 0.5.1),
     lubridate (>= 1.7.4),
     ggplot2 (>= 3.2.1),

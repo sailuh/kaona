@@ -10,3 +10,9 @@ reference:
 - contents:
   - parse_record
   - write_record
+- title: Topic
+  desc: Create Topic Models
+- contents:
+  - find_optimal_topic_parameters
+  - create_topic_term_matrix
+  - create_n_runs_warp_lda

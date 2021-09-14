@@ -1,0 +1,161 @@
+---
+title: "Single Pair Topic Performance"
+output: 
+  html_document:
+    toc: true
+    number_sections: true
+vignette: >
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteIndexEntry{Single Pair Topic Performance}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+set.seed(1)
+rm(list = ls())
+```
+
+```{r warning=FALSE,message=FALSE}
+set.seed(1)
+require(kaona)
+require(stringr)    # string manipulation
+require(tokenizers) # tokenization
+require(text2vec)   # topic-modelling
+require(aricode)    # error measures
+require(DEoptim)    # hyperparameter optimization
+```
+
+# Introduction 
+
+In this notebook, we conduct a simple experiment to measure how well topic modeling can match manual grouping of reports by topics of interest. To do so, we leverage [ASRS Report Sets](https://asrs.arc.nasa.gov/search/reportsets.html).
+
+ASRS Report Sets groups a sample of reports of the same topic based on ASRS analysts manual evaluation. In this notebook, we ask the following question:
+
+If we were to shuffle two different reports sets, and ask a computer algorithm to separate them by two topics, would it map the reports to their original report set pair, or discover a different group of report sets? 
+
+# Corpus
+
+## Report Sets 
+
+Because ASRS reports only exist as PDFs, we manually created .csv tables containing the ACNs of the reports in the report set PDFs. We then use these ACNs to retrieve the narratives in .csv format from the database. The two report sets showcased here are the Cabin Smole, Fire, or Odor Incidents Report Set and the Controller Report Set.
+
+```{r}
+report_set_1 <- fread("../rawdata/report_sets/cabin_fumes.csv",key="ACN",colClasses = c(ACN="integer"))
+#str_c(gt_animal$ACN,collapse = ",") format to paste at ASRS for corpus download
+report_set_2 <- fread("../rawdata/report_sets/ctlr.csv",key="ACN",colClasses = c(ACN="integer"))
+
+kable(head(report_set_1[,.(ACN)]))
+```
+
+## Database Dump
+
+This dataset uses a data dump provided by ASRS, however the same data can be queried using the online database interface and parsed into Kaona (see the vignette `Online ASRS Record Query Formatting` for details).
+
+```{r}
+corpus_text <- fread("../rawdata/DATA_DMP_20200121/TEXT.csv",key="ITEM_ID")[ATTRIBUTE == "Narrative"]
+corpus_text <- corpus_text[,.(ITEM_ID,TEXT)]
+colnames(corpus_text) <- c("ACN","narrative")
+```
+
+
+With both the ASRS reports ACNs and a dump of all ACNs and narratives, we subset our report set narratives for our `corpus`. Note we stack them here, such that the report set 1 narratives are on the top and the report set 2 narratives at the bottom. This simplify the groundtruth assignment at the last step of this notebook.
+
+```{r}
+# Extract the relevant report sets additional data from the database, and free memory from the ~900MB corpus
+corpus_report_set_1 <- corpus_text[corpus_text$ACN %in% report_set_1$ACN]
+corpus_report_set_2 <- corpus_text[corpus_text$ACN %in% report_set_2$ACN]
+rm(corpus_text)
+
+corpus <- rbind(corpus_report_set_1,corpus_report_set_2)
+kable(head(corpus))
+```
+
+We are now ready to conduct our report set shuffling experiment. 
+
+# Create Topic-Term Matrix 
+
+First, we load a set of stop words to be removed from the narratives:
+
+```{r}
+#Src: https://algs4.cs.princeton.edu/35applications/stopwords.txt
+stop_words <- fread("~/Downloads/stopwords.txt",header=FALSE)$V1
+```
+
+We can split the dataset into training and test to identify the best model hyperparameters Here this is done in respect to perplexity. Since we already know apriori the number of report sets are 2, we fixate the number of topics to 2. 
+
+```{r}
+# Lower and Upper Bounds for the value of number of topics k, alpha and beta
+lower <- c(2, 0, 0)
+upper <- c(2, 1.0, 0.1)
+
+optimal_params <- find_optimal_topic_parameters(corpus,lower,upper,stop_words)
+
+k <- optimal_params$optim$bestmem[1]
+alpha <- optimal_params$optim$bestmem[2]
+beta <- optimal_params$optim$bestmem[3]
+perplexity <- optimal_params$optim$bestval
+```
+
+The optimized parameters are as follows: 
+
+```{r}
+data.table(k,alpha,beta,perplexity)
+```
+
+We use the parameters to construct our topic-term and document-topic matrix, i.e. the groupings we wish the algorithm to compute based only on report narrative similarity. We will then use these groupings to compare to the ASRS analyst groupings.
+
+```{r}
+ttm_dtm <- create_topic_term_matrix(n_runs=1,corpus,k,alpha,beta,stop_words)
+ttm <- ttm_dtm[["topic_term_distr_all"]]
+dtm <- ttm_dtm[["doc_topic_distr_all"]]
+rm(ttm_dtm)
+```
+
+## Topic Deterministic Assignment
+
+A final step we perform here is the deterministic assignment of topics. Topic modelling has probabilistic assignments from document to topics (e.g. a report may be 20% about one topic, and 80% about other). Because the original report sets are a deterministic partition, so we can compare the results, we perform a deterministic assignment based on maximum likelihood: In the previous example, because 80% of the report is assigned to topic 2, then the report is said to be assigned only to topic 2. 
+
+```{r}
+topic_assignment <- apply(dtm,1,which.max)
+```
+
+
+# Performance
+
+## Pair Counting Measure - Adjusted Rand Index
+
+Because we stacked the report set 1 at the top and report set 2 at the bottom of the corpus, the ground truth assignment for the algorithm can be defined as 1111..(as many reports there are for report set 1)....2222... (as many report sets there are for report set 2).
+
+```{r}
+ground_truth_1 <- rep(1,nrow(corpus_report_set_1))
+ground_truth_2 <- rep(2,nrow(corpus) - nrow(corpus_report_set_1))
+ground_truth <- c(ground_truth_1,ground_truth_2)
+```
+
+Finally, we use ARI to assess how close to ASRS analysts assignments the algorithm was (values range from -1 to 1, where 0 is equivalent to a random assignment, below 0 worse than random, and above 0 better than random):
+
+```{r}
+aricode::ARI(topic_assignment,ground_truth)
+```
+
+
+# Top-10 Terms
+
+We can also assess the topics qualitatively using the top terms:
+
+```{r}
+print(names(sort(ttm[1,], decreasing = TRUE)[1:10]))
+```
+
+```{r}
+print(names(sort(ttm[2,], decreasing = TRUE)[1:10]))
+```
+
+
+# ARI References
+
+1. https://scikit-learn.org/stable/modules/generated/sklearn.metrics.adjusted_rand_score.html
+
+2. https://nlp.stanford.edu/IR-book/html/htmledition/evaluation-of-clustering-1.html
+
+3. https://dl.acm.org/doi/10.5555/1756006.1953024
