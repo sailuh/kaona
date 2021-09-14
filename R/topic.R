@@ -3,7 +3,7 @@
 #' @param corpus The corpus used for WarpLDA
 #' @param lower The lower bound for k, alpha and beta (a 3-element numeric vector)
 #' @param upper The upper bound for k, alpha and beta (a 3-element numeric vector)
-#'
+#' @param stop_words The list of stop words to be used
 #' @return Returns a list with the optimal hyperparameters
 #' @export
 #' @references Mika V. Mantyla, Maelick Claes, and Umar Farooq. 2018. Measuring LDA Topic Stability from Clusters of Replicated Runs. In ACM / IEEE International Symposium on Empirical Software Engineering and Measurement (ESEM) (ESEM ’18), October 11–12, 2018, Oulu, Finland. ACM, New York, NY, USA, Article 4, 4 pages. https://doi.org/10.1145/3239235.3267435
@@ -90,6 +90,8 @@ find_optimal_topic_parameters <- function(corpus,lower,upper,stop_words){
 #' @param n_runs The number of runs to perform topic modeling
 #' @param corpus The corpus used for WarpLDA
 #' @param n_clusters The number of topics/clusters chosen
+#' @param alpha Alpha parameter as specified in WarpLDA
+#' @param beta Beta parameter as specified in WarpLDA
 #' @param stop_words The list of stop words to be used
 #' @export
 create_topic_term_matrix <- function(n_runs,corpus,n_clusters,alpha,beta,stop_words){
@@ -185,4 +187,7 @@ create_n_runs_warp_lda <- function(k,n_runs,alpha,beta,dtm,lda_params,store_path
   return(dtm_ttm_all)
 }
 
-
+# Various imports
+utils::globalVariables(c("."))
+#' @importFrom magrittr %>%
+NULL

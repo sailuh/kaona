@@ -65,3 +65,10 @@ write_record <- function(monthly_reports_list,folder_path){
                                 file=str_c(folder_path,x)))
 
 }
+
+# Various imports
+utils::globalVariables(c("."))
+#' @importFrom data.table :=
+#' @importFrom data.table fread
+#' @importFrom data.table fwrite
+NULL

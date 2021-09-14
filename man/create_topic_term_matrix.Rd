@@ -13,6 +13,10 @@ create_topic_term_matrix(n_runs, corpus, n_clusters, alpha, beta, stop_words)
 
 \item{n_clusters}{The number of topics/clusters chosen}
 
+\item{alpha}{Alpha parameter as specified in WarpLDA}
+
+\item{beta}{Beta parameter as specified in WarpLDA}
+
 \item{stop_words}{The list of stop words to be used}
 }
 \description{

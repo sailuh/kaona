@@ -12,6 +12,8 @@ find_optimal_topic_parameters(corpus, lower, upper, stop_words)
 \item{lower}{The lower bound for k, alpha and beta (a 3-element numeric vector)}
 
 \item{upper}{The upper bound for k, alpha and beta (a 3-element numeric vector)}
+
+\item{stop_words}{The list of stop words to be used}
 }
 \value{
 Returns a list with the optimal hyperparameters

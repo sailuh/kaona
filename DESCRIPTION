@@ -16,20 +16,22 @@ Maintainer: Carlos Paradis <cvas@hawaii.edu>
 License: TBD
 Encoding: UTF-8
 LazyData: true
-Depends:
-    data.table (>= 1.12.8),
-    arrangements (>= 1.1.8),
-    knitr,
-    stringr (>= 1.4.0),
-    tokenizers (>= 0.2.1),
-    DEoptim (>= 2.2-4)
 Suggests: text2vec (>= 0.5.1),
     lubridate (>= 1.7.4),
     ggplot2 (>= 3.2.1),
     ggthemes (>= 4.2.0),
     pkgdown (>= 1.4.1),
     knitr (>= 1.26),
-    reactable (>= 0.1.0),
+    reactable (>= 0.1.0)
+Depends:
+    R (>= 3.6.0)
+Imports:
+    data.table (>= 1.12.8),
+    arrangements (>= 1.1.8),
+    knitr,
+    stringr (>= 1.4.0),
+    tokenizers (>= 0.2.1),
+    DEoptim (>= 2.2-4),
     magrittr (>= 1.5)
 VignetteBuilder: knitr
 URL: https://github.com/sailuh/kaona

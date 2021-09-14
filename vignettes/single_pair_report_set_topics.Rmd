@@ -18,11 +18,13 @@ rm(list = ls())
 ```{r warning=FALSE,message=FALSE}
 set.seed(1)
 require(kaona)
+require(data.table)
 require(stringr)    # string manipulation
 require(tokenizers) # tokenization
 require(text2vec)   # topic-modelling
 require(aricode)    # error measures
 require(DEoptim)    # hyperparameter optimization
+require(knitr)
 ```
 
 # Introduction 
