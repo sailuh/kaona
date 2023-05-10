@@ -1,0 +1,203 @@
+---
+title: "Metadata Network per Narrative"
+output: 
+  html_document:
+    toc: true
+    number_sections: true
+    code_folding: hide
+vignette: >
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteIndexEntry{Metadata Network per Narrative}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r message = FALSE, warning = FALSE}
+library(kaona)
+library(data.table)
+library(lubridate)
+library(visNetwork)
+library(stringr)
+library(RColorBrewer)
+```
+
+# Introduction
+
+The data ingestion of this notebook assumes you have a data dump from ASRS. However, the data obtained publicly can still be re-spahed so to use this code functionality. 
+
+# Dataset 
+
+```{r message = FALSE, warning = FALSE}
+#metadata <- fread("~/Desktop/nasa/DATA_DMP_20200121/STATIC_ATTRIBUTE_VALUE.csv")
+metadata <- fread("../rawdata//DATA_DMP_20200121/ALL_ITEMS.csv")
+#metadata[ATTRIBUTE == "Date"]$VALUE <- ymd(str_c(metadata[ATTRIBUTE == "Date"]$VALUE,"01"))
+```
+
+First, we choose the time range of interest to visualize co-ocurrence patterns. This step is required first, as ASRS is in long-form, and the filtering requires wide-form.
+
+```{r}
+# Metadata of interest
+#metadata_field <- c("Primary Problem","Human Factors")
+
+start_date <- ymd("2018-02-01") #day is irrelevant, ASRS timestamp is YEARMON
+end_date <- ymd("2018-02-01")
+#start_date <- ymd("2004-01-01") #day is irrelevant, ASRS timestamp is YEARMON
+#end_date <- ymd("2004-01-01")
+#metadata_edgelist <- metadata_edgelist[ATTRIBUTE %in% c("Date",metadata_field)]
+
+# Convert to Wide Form, so we can Filter by Date
+metadata <- dcast(metadata, ITEM_ID ~ ATTRIBUTE,
+                           fun.agg = function(x) x[1] ,
+                           value.var = "VALUE")
+
+metadata$Date <- ymd(str_c(metadata$Date,"01"))
+
+metadata <- metadata[Date >= start_date & Date <= end_date]
+metadata$Date <- as.character(metadata$Date)
+
+# Remove Date and convert back to Long Form (edgelist)
+metadata <- melt(metadata, id.vars = "ITEM_ID")
+
+#metadata_edgelist <- metadata_edgelist[ATTRIBUTE %in% c("Flight Phase","Primary Problem","Light","Mission")]
+
+#metadata_edgelist$color <- metadata_edgelist$ATTRIBUTE
+#metadata_edgelist[ATTRIBUTE=="Primary Problem", color := "black"]
+#metadata_edgelist[ATTRIBUTE=="Light", color := "#f4dbb5"]
+#metadata_edgelist[ATTRIBUTE=="Mission", color := "#afe569"]
+
+colnames(metadata) <- c("ITEM_ID","ATTRIBUTE","VALUE")
+```
+
+Next, we choose the metadata `attribute-value` pairs of interest to observe for the previously chosen time range.
+
+```{r}
+# "Make Model Name" for Aircraft
+
+# model_field <- c("Make Model Name")
+# result_field <- c("Result.General",
+#                  "Result.Flight Crew",
+#                  "Result.Air Traffic Control",
+#                  "Result.Aircraft")
+# anomaly_field <- c("Anomaly.Aircraft Equipment",
+#                  "Anomaly.Conflict",
+#                  "Anomaly.Ground Event / Encounter",
+#                  "Anomaly.Inflight Event / Encounter",
+#                  "Anomaly.Flight Deck / Cabin / Aircraft Event",
+#                  "Anomaly.ATC Issues")
+anomaly_field_b <- c("Anomaly.ATC Issues",
+                            "Anomaly.Deviation - Altitude",
+                            "Anomaly.Deviation - Speed",
+                            "Anomaly.Deviation - Track/Heading")
+location_b <- c("Locale Reference.Airport")
+# problem_field <- c("Primary Problem",
+#                  "Contributing Factors / Situations")
+# human_field <- c("Human Factors")
+# maintenance_field <- c("Maintenance Status")
+# weather_field <- c("Weather Elements / Visibility")
+# mission_field <- c("Mission")
+# flight_phase <- c("Flight Phase") # Alerts were overall distributed across different fligh phases
+#metadata_field <- c(anomaly_field,human_field)
+
+#metadata_field <- c(weather_field,
+#                    anomaly_field,
+#                    human_field)
+                 
+#ifelse(length(grep("Flight Phase:",metadata_nodes$name)) == 1,"red","lightblue")
+
+#metadata_field <- c(flight_phase,anomaly_field)
+metadata_field <- c(anomaly_field_b,location_b)
+
+
+metadata_edgelist <- metadata[ATTRIBUTE %in% c(metadata_field)]
+metadata_edgelist$VALUE <- str_c(metadata_edgelist$ATTRIBUTE,": ",metadata_edgelist$VALUE)
+metadata_nodes <- unique(c(metadata_edgelist$ITEM_ID,metadata_edgelist$VALUE))
+metadata_nodes <- data.table(name=metadata_nodes,
+                             color=ifelse(metadata_nodes %in% metadata_edgelist$ITEM_ID,
+                                                          "black",
+                                                          "lightblue"))
+
+metadata_nodes$type <-  ifelse(metadata_nodes$name %in% metadata_edgelist$ITEM_ID,
+                                           TRUE,
+                                           FALSE)
+```
+
+We then give each `attribute` a different color, up to 12 different colors to facilitate visualization of it's various values. The restriction of color is based of the pallete limit, but it could arbitrarily be any number of colors.
+
+```{r eval = TRUE}
+for(i in 1:length(metadata_field)){
+  # Maximum different attributes = 12 due to cap on color pallete
+  metadata_nodes[grep(metadata_field[i],metadata_nodes$name),color:=brewer.pal(n = 12,name = "Paired")[i]]  
+}
+```
+
+We then filter the complete pair of nodes and edges.
+
+```{r}
+metadata_edgelist <- metadata_edgelist[,.(id=ITEM_ID,value=VALUE)]
+metadata_nodes <- metadata_nodes[complete.cases(metadata_nodes)]
+metadata_edgelist <- metadata_edgelist[complete.cases(metadata_edgelist)]
+```
+
+# Report Metadata Network
+
+And finally, we visualize the metadata network.
+
+```{r}
+g <- igraph::graph_from_data_frame(d=metadata_edgelist, 
+                      directed = FALSE,
+                      vertices = metadata_nodes)
+visIgraph(g,randomSeed = 1)
+```
+We can also observe the network projection:
+
+```{r}
+metadata_overlap_partition <- igraph::bipartite_projection(g,
+                                          multiplicity = TRUE,
+                                          which = FALSE) # FALSE is the labels 
+visIgraph(metadata_overlap_partition,randomSeed = 1)
+```
+
+
+
+# Metadata Co-Ocurrence Patterns
+
+Patterns in the network can be observed using network community detection algorithms. For example, we can use OSLOM to detect patterns of metadata that co-occur and assess if this co-occurrence is not due to chance:
+
+```{r}
+community <- cluster_oslom(edgelist = metadata_edgelist,
+                           oslom_bin_undir_path = "~/OSLOM2/oslom_undir",
+                           seed = 3)
+```
+
+# Color network by OSLOM Community Detection
+
+
+```{r}
+color_pallete <- brewer.pal(n = 12,name = "Paired")
+
+node_cid_mapping <- community[["assignment"]]
+node_cid_mapping$color <- color_pallete[as.integer(node_cid_mapping$cluster_id) + 1]
+# Cluster IDs begin at index 0. R starts at index 1. Use cluster id + 1 as index to 
+# choose color
+metadata_nodes_cid <- merge(metadata_nodes,
+                            node_cid_mapping,
+                            by.x = "name",
+                            by.y ="node_id",
+                            all.x = TRUE) # there should be no node not assigned a cluster
+
+# Choose color of clustering instead of previous scheme 
+
+metadata_nodes_cid <- metadata_nodes_cid[,.(name,color=color.y,type)]
+# If node is repeated, it is a boundary community node, color it a unique color
+assign_boundary_color <- function(x){
+  ifelse(length(x) > 1,"black",x)
+}
+metadata_nodes_cid <- metadata_nodes_cid[,.(color=assign_boundary_color(color),type), 
+                   ,by=c("name")]
+metadata_nodes_cid <- unique(metadata_nodes_cid)
+
+gcid <- igraph::graph_from_data_frame(d=metadata_edgelist, 
+                      directed = FALSE,
+                      vertices = metadata_nodes_cid)
+visIgraph(gcid,randomSeed = 1)
+```
+

@@ -1,9 +1,9 @@
 title: Kaona
+destination: docs
 development:
   mode: unreleased
 template:
-  params:
-    bootswatch: simplex
+  bootstrap: 5
 reference:
 - title: I/O
   desc: Read and Write ASRS Records
@@ -16,3 +16,7 @@ reference:
   - find_optimal_topic_parameters
   - create_topic_term_matrix
   - create_n_runs_warp_lda
+- title: Metadata
+  desc: Metadata related functions.
+- contents:
+  - cluster_oslom
